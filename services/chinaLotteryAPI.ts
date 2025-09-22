@@ -93,7 +93,27 @@ export async function fetchChinaLotteryData(lotteryType: LotteryType, issueNumbe
         const html = await response.text();
         console.log('🌐 成功获取专用页面内容');
         
-        // 基于实际HTML结构的改进解析
+        // 优先尝试NUXT数据解析（更准确）
+        console.log(`📊 尝试从__NUXT__数据解析最新开奖信息...`);
+        const nuxtMatch = html.match(/__NUXT__=(.*?)<\/script>/);
+        if (nuxtMatch) {
+            try {
+                const nuxtData = JSON.parse(nuxtMatch[1]);
+                console.log(`📊 找到NUXT数据，尝试解析${lotteryType}...`);
+            } catch (e) {
+                console.log(`📊 NUXT数据解析失败`);
+            }
+        }
+        
+        const nuxtResult = null; // 暂时跳过NUXT解析，直接使用改进的正则
+        if (nuxtResult) {
+            console.log(`✅ 从NUXT数据成功获取${lotteryType}第${nuxtResult.issueNumber}期开奖号码:`);
+            console.log(`   前区号码: ${nuxtResult.front_area.join(', ')}`);
+            console.log(`   后区号码: ${nuxtResult.back_area.join(', ')}`);
+            return nuxtResult;
+        }
+        
+        // 备用：基于HTML结构的正则解析
         const result = parseFromImprovedRegex(html, lotteryType);
         
         if (result && validateWinningNumbers(result)) {
@@ -174,27 +194,33 @@ function parseLatestLotteryData(match: RegExpMatchArray, lotteryType: LotteryTyp
 }
 
 
-// 基于实际HTML结构的改进解析
+// 基于实际HTML结构的改进解析 - 支持动态期号检测
 function parseFromImprovedRegex(html: string, lotteryType: LotteryType): WinningNumbers | null {
     try {
         if (lotteryType === LotteryType.UNION_LOTTO) {
-            // 双色球：尝试多种期号格式
-            const possibleIssues = ['2025109', '25109'];
+            // 双色球：动态查找最新期号
+            const issuePattern = /(20\d{5})期|(\d{5})期/g;
+            const issueMatches = [...html.matchAll(issuePattern)];
             
-            for (const issue of possibleIssues) {
-                const issueMatch = html.match(new RegExp(`(${issue})期`));
-                if (issueMatch) {
-                    console.log(`🔍 找到双色球期号: ${issue}`);
-                    const issuePosition = html.indexOf(`${issue}期`);
+            // 提取所有可能的期号并排序，获取最新的
+            const issues = issueMatches
+                .map(match => match[1] || `20${match[2]}`)
+                .filter(Boolean)
+                .sort((a, b) => parseInt(b) - parseInt(a)); // 降序排列，最新的在前
+            
+            for (const issue of issues) {
+                console.log(`🔍 尝试双色球期号: ${issue}`);
+                const issuePosition = html.indexOf(`${issue}期`);
+                if (issuePosition !== -1) {
                     const nearbySection = html.substring(issuePosition, issuePosition + 2000);
                     
                     const numberMatch = nearbySection.match(/<em[^>]*>\s*(\d+)<!----><\/em><em[^>]*>\s*(\d+)<!----><\/em><em[^>]*>\s*(\d+)<!----><\/em><em[^>]*>\s*(\d+)<!----><\/em><em[^>]*>\s*(\d+)<!----><\/em><em[^>]*>\s*(\d+)<!----><\/em>\s*<em[^>]*class="blue-ball"[^>]*>(\d+)<\/em>/);
                     
                     if (numberMatch) {
-                        const normalizedIssue = issue === '25109' ? '2025109' : issue;
+                        console.log(`✅ 成功解析双色球期号: ${issue}`);
                         return {
                             lotteryType,
-                            issueNumber: normalizedIssue,
+                            issueNumber: issue,
                             front_area: [numberMatch[1], numberMatch[2], numberMatch[3], numberMatch[4], numberMatch[5], numberMatch[6]].map(n => n.padStart(2, '0')),
                             back_area: [numberMatch[7].padStart(2, '0')]
                         };
@@ -202,26 +228,60 @@ function parseFromImprovedRegex(html: string, lotteryType: LotteryType): Winning
                 }
             }
         } else {
-            // 大乐透：查找25108期的数据
-            const issueMatch = html.match(/(25108)期/);
-            if (issueMatch) {
-                const issuePosition = html.indexOf('25108期');
-                const nearbySection = html.substring(issuePosition, issuePosition + 2000);
-                
-                const numberMatch = nearbySection.match(/<em[^>]*>\s*(\d+)<!----><\/em><em[^>]*>\s*(\d+)<!----><\/em><em[^>]*>\s*(\d+)<!----><\/em><em[^>]*>\s*(\d+)<!----><\/em><em[^>]*>\s*(\d+)<!----><\/em>\s*<em[^>]*class="blue-ball"[^>]*>(\d+)<\/em><em[^>]*class="blue-ball"[^>]*>(\d+)<\/em>/);
-                
-                if (numberMatch) {
-                    return {
-                        lotteryType,
-                        issueNumber: '25108',
-                        front_area: [numberMatch[1], numberMatch[2], numberMatch[3], numberMatch[4], numberMatch[5]].map(n => n.padStart(2, '0')),
-                        back_area: [numberMatch[6].padStart(2, '0'), numberMatch[7].padStart(2, '0')]
-                    };
+            // 大乐透：动态查找最新期号
+            const issuePattern = /(20\d{5})期|(\d{5})期/g;
+            const issueMatches = [...html.matchAll(issuePattern)];
+            
+            // 提取所有可能的期号并排序，获取最新的
+            const issues = issueMatches
+                .map(match => match[1] || `20${match[2]}`)
+                .filter(Boolean)
+                .sort((a, b) => parseInt(b) - parseInt(a)); // 降序排列，最新的在前
+            
+            for (const issue of issues) {
+                console.log(`🔍 尝试大乐透期号: ${issue}`);
+                const issuePosition = html.indexOf(`${issue}期`);
+                if (issuePosition !== -1) {
+                    // 查找期号后最近的大乐透容器
+                    const containerPosition = html.indexOf('theme-ball-dlt', issuePosition);
+                    if (containerPosition !== -1 && containerPosition - issuePosition < 800) {
+                        // 在容器内搜索号码，缩小搜索范围
+                        const containerSection = html.substring(containerPosition, containerPosition + 600);
+                        
+                        // 改进的大乐透号码匹配，支持可选的注释和空白
+                        const numberMatch = containerSection.match(/<em[^>]*>\s*(\d{1,2})(?:<!---->)?\s*<\/em>\s*<em[^>]*>\s*(\d{1,2})(?:<!---->)?\s*<\/em>\s*<em[^>]*>\s*(\d{1,2})(?:<!---->)?\s*<\/em>\s*<em[^>]*>\s*(\d{1,2})(?:<!---->)?\s*<\/em>\s*<em[^>]*>\s*(\d{1,2})(?:<!---->)?\s*<\/em>\s*<em[^>]*class="blue-ball"[^>]*>\s*(\d{1,2})(?:<!---->)?\s*<\/em>\s*<em[^>]*class="blue-ball"[^>]*>\s*(\d{1,2})(?:<!---->)?\s*<\/em>/);
+                        
+                        if (numberMatch) {
+                            console.log(`✅ 成功解析大乐透期号: ${issue}`);
+                            // 确保期号格式正确（7位数字，如2025109）
+                            const formattedIssue = issue.length === 5 ? `20${issue}` : issue;
+                            return {
+                                lotteryType,
+                                issueNumber: formattedIssue,
+                                front_area: [numberMatch[1], numberMatch[2], numberMatch[3], numberMatch[4], numberMatch[5]].map(n => n.padStart(2, '0')),
+                                back_area: [numberMatch[6].padStart(2, '0'), numberMatch[7].padStart(2, '0')]
+                            };
+                        }
+                    }
+                }
+            }
+                    
+                    if (numberMatch) {
+                        console.log(`✅ 成功解析大乐透期号: ${issue}`);
+                        // 确保期号格式正确（7位数字，如2025109）
+                        const formattedIssue = issue.length === 5 ? `20${issue}` : issue;
+                        return {
+                            lotteryType,
+                            issueNumber: formattedIssue,
+                            front_area: [numberMatch[1], numberMatch[2], numberMatch[3], numberMatch[4], numberMatch[5]].map(n => n.padStart(2, '0')),
+                            back_area: [numberMatch[6].padStart(2, '0'), numberMatch[7].padStart(2, '0')]
+                        };
+                    }
                 }
             }
         }
         
-        console.log(`⚠️ 未找到${lotteryType}的特定期号数据`);
+        console.log(`⚠️ 未找到${lotteryType}的有效期号数据`);
         return null;
     } catch (error) {
         console.error('改进正则解析失败:', error);
@@ -308,45 +368,54 @@ function validateWinningNumbers(winningNumbers: WinningNumbers): boolean {
     }
 }
 
-// 解析 NUXT 数据中的彩票开奖信息
+// 解析 NUXT 数据中的彩票开奖信息（改进版，支持正确格式）
 function parseNuxtLotteryData(html: string, lotteryType: LotteryType): WinningNumbers | null {
     try {
-        // 从调试信息可以看到，页面包含类似这样的数据结构
-        // resultArea1:"05,06,09,17,18,31",resultArea2:"03"
-        // issueNo:"25109",lotteryName:"双色球"
+        console.log(`📊 尝试从__NUXT__数据解析历史开奖信息...`);
         
         if (lotteryType === LotteryType.UNION_LOTTO) {
-            // 查找双色球数据
+            // 查找双色球数据 - 改进正则表达式以正确匹配格式
             const unionLottoMatch = html.match(/lotteryName:"双色球"[\s\S]*?issueNo:"(\d+)"[\s\S]*?resultArea1:"([^"]+)"[\s\S]*?resultArea2:"([^"]+)"/);
             if (unionLottoMatch) {
                 const [, period, area1, area2] = unionLottoMatch;
-                const frontNumbers = area1.split(',');
-                const backNumbers = [area2];
+                const frontNumbers = area1.split(',').map(n => n.padStart(2, '0'));
+                const backNumbers = [area2.padStart(2, '0')];
+                
+                // 格式化期号
+                const formattedPeriod = period.length === 5 ? `20${period}` : period;
+                
+                console.log(`✅ 解析到双色球数据: 期号${formattedPeriod}, 前区${frontNumbers.join(',')}, 后区${backNumbers.join(',')}`);
                 
                 return {
                     lotteryType,
-                    issueNumber: `20${period}`,
+                    issueNumber: formattedPeriod,
                     front_area: frontNumbers,
                     back_area: backNumbers
                 };
             }
         } else if (lotteryType === LotteryType.SUPER_LOTTO) {
-            // 查找大乐透数据
+            // 查找大乐透数据 - 改进正则表达式
             const superLottoMatch = html.match(/lotteryName:"大乐透"[\s\S]*?issueNo:"(\d+)"[\s\S]*?resultArea1:"([^"]+)"[\s\S]*?resultArea2:"([^"]+)"/);
             if (superLottoMatch) {
                 const [, period, area1, area2] = superLottoMatch;
-                const frontNumbers = area1.split(',');
-                const backNumbers = area2.split(',');
+                const frontNumbers = area1.split(',').map(n => n.padStart(2, '0'));
+                const backNumbers = area2.split(',').map(n => n.padStart(2, '0'));
+                
+                // 格式化期号
+                const formattedPeriod = period.length === 5 ? `20${period}` : period;
+                
+                console.log(`✅ 解析到大乐透数据: 期号${formattedPeriod}, 前区${frontNumbers.join(',')}, 后区${backNumbers.join(',')}`);
                 
                 return {
                     lotteryType,
-                    issueNumber: `20${period}`,
+                    issueNumber: formattedPeriod,
                     front_area: frontNumbers,
                     back_area: backNumbers
                 };
             }
         }
         
+        console.log(`📊 找到 0 条${lotteryType}记录`);
         return null;
     } catch (error) {
         console.error('解析NUXT数据失败:', error);
