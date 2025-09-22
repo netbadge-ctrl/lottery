@@ -121,12 +121,16 @@ function App() {
         setPreviewUrl(null);
     }, [previewUrl]);
 
-    const handleClearDatabase = () => {
-        clearDatabase();
-        setShowDataManager(false);
-        // 如果正在显示结果，重新扫描以更新状态
-        if (scannedData) {
-            handleScan();
+    const handleClearDatabase = async () => {
+        try {
+            await clearDatabase();
+            setShowDataManager(false);
+            // 如果正在显示结果，重新扫描以更新状态
+            if (scannedData) {
+                handleScan();
+            }
+        } catch (error) {
+            console.error('清空数据库失败:', error);
         }
     };
     

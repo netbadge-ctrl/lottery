@@ -32,11 +32,11 @@ export const getWinningNumbers = async (lotteryType: LotteryType, issueNumber: s
         return winningNumbersCache.get(cacheKey)!;
     }
     
-    // 第二层：从官网数据库查询（唯一数据源）
-    const result = getWinningNumbersFromDatabase(lotteryType, issueNumber);
+    // 第二层：从PostgreSQL数据库查询（唯一数据源）
+    const result = await getWinningNumbersFromDatabase(lotteryType, issueNumber);
     
     if (result) {
-        console.log(`🏛️ 从官网数据库获取${lotteryType}第${issueNumber}期开奖号码`);
+        console.log(`🏛️ 从PostgreSQL数据库获取${lotteryType}第${issueNumber}期开奖号码`);
         // 缓存到内存
         winningNumbersCache.set(cacheKey, result);
         return result;

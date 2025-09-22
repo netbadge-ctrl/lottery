@@ -1,185 +1,107 @@
 import { LotteryType, type WinningNumbers } from '../types';
-import { fetchRecentLotteryHistory, fetchChinaLotteryData } from './chinaLotteryAPI';
+import { lotteryAPI } from './apiClient';
 
-// 数据库结构：本地存储的开奖数据
-interface LotteryDatabase {
-    lastUpdate: string;
-    data: {
-        [LotteryType.UNION_LOTTO]: WinningNumbers[];
-        [LotteryType.SUPER_LOTTO]: WinningNumbers[];
-    };
-}
-
-// 本地数据库
-let lotteryDatabase: LotteryDatabase = {
-    lastUpdate: '',
-    data: {
-        [LotteryType.UNION_LOTTO]: [],
-        [LotteryType.SUPER_LOTTO]: []
+// 初始化API连接测试
+const initializeAPIConnection = async (): Promise<void> => {
+    try {
+        const health = await lotteryAPI.testConnection();
+        if (health.status === 'ok') {
+            console.log('✅ API服务连接成功');
+            console.log(`📊 数据库状态: ${health.database}`);
+        } else {
+            console.error('❌ API服务连接失败');
+        }
+    } catch (error) {
+        console.error('❌ API连接测试失败:', error);
     }
 };
 
-// 从localStorage加载数据
-function loadFromLocalStorage(): void {
-    try {
-        const stored = localStorage.getItem('lottery_official_database');
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            lotteryDatabase = {
-                ...lotteryDatabase,
-                ...parsed
-            };
-            console.log(`📚 从本地存储加载开奖数据库，上次更新: ${lotteryDatabase.lastUpdate}`);
-            console.log(`   双色球: ${lotteryDatabase.data[LotteryType.UNION_LOTTO].length}期`);
-            console.log(`   大乐透: ${lotteryDatabase.data[LotteryType.SUPER_LOTTO].length}期`);
-        }
-    } catch (error) {
-        console.error('加载本地数据失败:', error);
-    }
-}
-
-// 保存到localStorage
-function saveToLocalStorage(): void {
-    try {
-        localStorage.setItem('lottery_official_database', JSON.stringify(lotteryDatabase));
-        console.log('💾 开奖数据已保存到本地存储');
-    } catch (error) {
-        console.error('保存本地数据失败:', error);
-    }
-}
-
-// 从官网抓取指定数量的历史数据
+// 通过API抓取指定数量的历史数据
 export async function fetchHistoryData(count: number = 100): Promise<void> {
-    console.log(`🕐 开始从官网抓取过去${count}期开奖数据...`);
+    console.log(`🕐 开始通过API抓取过去${count}期开奖数据...`);
     
     try {
-        // 抓取双色球历史数据
-        console.log('🔴 正在抓取双色球历史数据...');
-        const unionLottoHistory = await fetchRecentLotteryHistory(LotteryType.UNION_LOTTO, count);
+        const result = await lotteryAPI.fetchHistoryData(count);
         
-        // 抓取大乐透历史数据
-        console.log('🔵 正在抓取大乐透历史数据...');
-        const superLottoHistory = await fetchRecentLotteryHistory(LotteryType.SUPER_LOTTO, count);
-        
-        // 更新本地数据库
-        lotteryDatabase.data[LotteryType.UNION_LOTTO] = unionLottoHistory;
-        lotteryDatabase.data[LotteryType.SUPER_LOTTO] = superLottoHistory;
-        lotteryDatabase.lastUpdate = new Date().toISOString();
-        
-        // 保存到本地存储
-        saveToLocalStorage();
-        
-        console.log('✅ 历史数据抓取完成!');
-        console.log(`   双色球: ${unionLottoHistory.length}期`);
-        console.log(`   大乐透: ${superLottoHistory.length}期`);
-        console.log(`   更新时间: ${lotteryDatabase.lastUpdate}`);
+        if (result.success) {
+            console.log('✅ 历史数据抓取完成!');
+            console.log(`   双色球: ${result.data.unionLotto}期`);
+            console.log(`   大乐透: ${result.data.superLotto}期`);
+            console.log(`   总计: ${result.data.total}期`);
+        } else {
+            throw new Error('API返回失败状态');
+        }
         
     } catch (error) {
         console.error('❌ 抓取历史数据失败:', error);
+        throw error;
     }
 }
 
-// 抓取最新开奖数据并更新数据库
+// 通过API抓取最新开奖数据
 export async function fetchLatestData(): Promise<void> {
-    console.log('🔄 正在从官网抓取最新开奖数据...');
+    console.log('🔄 正在通过API抓取最新开奖数据...');
     
     try {
-        // 获取最新数据
-        const latestUnionLotto = await fetchChinaLotteryData(LotteryType.UNION_LOTTO);
-        const latestSuperLotto = await fetchChinaLotteryData(LotteryType.SUPER_LOTTO);
+        const result = await lotteryAPI.fetchLatestData();
         
-        let hasUpdates = false;
-        
-        // 更新双色球数据
-        if (latestUnionLotto) {
-            const existingIndex = lotteryDatabase.data[LotteryType.UNION_LOTTO]
-                .findIndex(item => item.issueNumber === latestUnionLotto.issueNumber);
-            
-            if (existingIndex === -1) {
-                // 新数据，添加到数组开头
-                lotteryDatabase.data[LotteryType.UNION_LOTTO].unshift(latestUnionLotto);
-                console.log(`✅ 新增双色球第${latestUnionLotto.issueNumber}期数据`);
-                hasUpdates = true;
-            } else {
-                // 更新现有数据
-                lotteryDatabase.data[LotteryType.UNION_LOTTO][existingIndex] = latestUnionLotto;
-                console.log(`🔄 更新双色球第${latestUnionLotto.issueNumber}期数据`);
-                hasUpdates = true;
-            }
-        }
-        
-        // 更新大乐透数据
-        if (latestSuperLotto) {
-            const existingIndex = lotteryDatabase.data[LotteryType.SUPER_LOTTO]
-                .findIndex(item => item.issueNumber === latestSuperLotto.issueNumber);
-            
-            if (existingIndex === -1) {
-                // 新数据，添加到数组开头
-                lotteryDatabase.data[LotteryType.SUPER_LOTTO].unshift(latestSuperLotto);
-                console.log(`✅ 新增大乐透第${latestSuperLotto.issueNumber}期数据`);
-                hasUpdates = true;
-            } else {
-                // 更新现有数据
-                lotteryDatabase.data[LotteryType.SUPER_LOTTO][existingIndex] = latestSuperLotto;
-                console.log(`🔄 更新大乐透第${latestSuperLotto.issueNumber}期数据`);
-                hasUpdates = true;
-            }
-        }
-        
-        if (hasUpdates) {
-            lotteryDatabase.lastUpdate = new Date().toISOString();
-            saveToLocalStorage();
-            console.log('💾 数据库已更新并保存');
+        if (result.success) {
+            console.log('✅ 最新开奖数据已更新!');
+            result.data.forEach((item: any) => {
+                console.log(`   ${item.type === 'unionLotto' ? '双色球' : '大乐透'}: 第${item.issueNumber}期`);
+            });
         } else {
-            console.log('ℹ️ 没有新的开奖数据');
+            throw new Error('API返回失败状态');
         }
         
     } catch (error) {
         console.error('❌ 抓取最新数据失败:', error);
+        throw error;
     }
 }
 
-// 从本地数据库查询开奖号码
-export function getWinningNumbersFromDatabase(lotteryType: LotteryType, issueNumber: string): WinningNumbers | null {
-    const data = lotteryDatabase.data[lotteryType];
-    const result = data.find(item => item.issueNumber === issueNumber);
-    
-    if (result) {
-        console.log(`📚 从本地数据库获取${lotteryType}第${issueNumber}期开奖数据`);
-        return result;
-    }
-    
-    return null;
-}
-
-// 获取数据库统计信息
-export function getDatabaseStats(): { [key: string]: any } {
-    return {
-        lastUpdate: lotteryDatabase.lastUpdate,
-        unionLottoCount: lotteryDatabase.data[LotteryType.UNION_LOTTO].length,
-        superLottoCount: lotteryDatabase.data[LotteryType.SUPER_LOTTO].length,
-        totalRecords: lotteryDatabase.data[LotteryType.UNION_LOTTO].length + 
-                     lotteryDatabase.data[LotteryType.SUPER_LOTTO].length,
-        latestUnionLotto: lotteryDatabase.data[LotteryType.UNION_LOTTO][0]?.issueNumber || '无',
-        latestSuperLotto: lotteryDatabase.data[LotteryType.SUPER_LOTTO][0]?.issueNumber || '无'
-    };
-}
-
-// 清空数据库
-export function clearDatabase(): void {
-    lotteryDatabase = {
-        lastUpdate: '',
-        data: {
-            [LotteryType.UNION_LOTTO]: [],
-            [LotteryType.SUPER_LOTTO]: []
-        }
-    };
-    
+// 通过API查询开奖号码
+export async function getWinningNumbersFromDatabase(lotteryType: LotteryType, issueNumber: string): Promise<WinningNumbers | null> {
     try {
-        localStorage.removeItem('lottery_official_database');
-        console.log('🗑️ 已清空开奖数据库');
+        const result = await lotteryAPI.getLotteryResult(lotteryType, issueNumber);
+        
+        if (result) {
+            console.log(`📚 通过API获取${lotteryType}第${issueNumber}期开奖数据`);
+            return result;
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('API查询开奖号码失败:', error);
+        return null;
+    }
+}
+
+// 通过API获取数据库统计信息
+export async function getDatabaseStats(): Promise<{ [key: string]: any }> {
+    try {
+        return await lotteryAPI.getDatabaseStats();
+    } catch (error) {
+        console.error('获取数据库统计信息失败:', error);
+        return {
+            database: 'PostgreSQL (via API)',
+            error: '无法连接到API服务'
+        };
+    }
+}
+
+// 通过API清空数据库
+export async function clearDatabase(): Promise<void> {
+    try {
+        const result = await lotteryAPI.clearDatabase();
+        if (result.success) {
+            console.log('🗑️ 已清空PostgreSQL数据库中的所有开奖数据');
+        } else {
+            throw new Error('API返回失败状态');
+        }
     } catch (error) {
         console.error('清空数据库失败:', error);
+        throw error;
     }
 }
 
@@ -249,23 +171,23 @@ export function clearDailyFetch(): void {
 let isServiceInitialized = false;
 
 // 初始化数据服务
-export function initializeDataService(): void {
+export async function initializeDataService(): Promise<void> {
     // 防止重复初始化
     if (isServiceInitialized) {
         console.log('ℹ️ 开奖数据服务已经初始化，跳过重复初始化');
         return;
     }
     
-    console.log('🚀 初始化开奖数据服务...');
+    console.log('🚀 初始化API开奖数据服务...');
     
-    // 加载本地数据
-    loadFromLocalStorage();
+    // 初始化API连接
+    await initializeAPIConnection();
     
     // 设置定时任务
     setupDailyFetch();
     
     isServiceInitialized = true;
-    console.log('✅ 开奖数据服务已启动');
+    console.log('✅ API开奖数据服务已启动');
 }
 
 // 重置服务状态（用于测试或重新初始化）
@@ -276,18 +198,22 @@ export function resetDataService(): void {
 }
 
 // 获取最新开奖数据
-export function getLatestWinningNumbers(lotteryType: LotteryType): WinningNumbers | null {
-    const data = lotteryDatabase.data[lotteryType];
-    return data.length > 0 ? data[0] : null;
+export async function getLatestWinningNumbers(lotteryType: LotteryType): Promise<WinningNumbers | null> {
+    try {
+        const results = await lotteryAPI.getLatestResults();
+        return lotteryType === LotteryType.UNION_LOTTO ? results.unionLotto : results.superLotto;
+    } catch (error) {
+        console.error('获取最新开奖数据失败:', error);
+        return null;
+    }
 }
 
 // 获取所有彩票的最新开奖数据
-export function getAllLatestWinningNumbers(): { unionLotto: WinningNumbers | null, superLotto: WinningNumbers | null } {
-    return {
-        unionLotto: getLatestWinningNumbers(LotteryType.UNION_LOTTO),
-        superLotto: getLatestWinningNumbers(LotteryType.SUPER_LOTTO)
-    };
+export async function getAllLatestWinningNumbers(): Promise<{ unionLotto: WinningNumbers | null, superLotto: WinningNumbers | null }> {
+    try {
+        return await lotteryAPI.getLatestResults();
+    } catch (error) {
+        console.error('获取所有最新开奖数据失败:', error);
+        return { unionLotto: null, superLotto: null };
+    }
 }
-
-// 导出数据库访问函数
-export { lotteryDatabase };

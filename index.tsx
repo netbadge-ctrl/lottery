@@ -5,7 +5,9 @@ import App from './App';
 import { initializeDataService } from './services/dataFetchService';
 
 // 初始化数据服务（只在应用启动时执行一次）
-initializeDataService();
+initializeDataService().catch(error => {
+    console.error('数据服务初始化失败:', error);
+});
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

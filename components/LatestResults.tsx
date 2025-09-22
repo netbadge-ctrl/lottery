@@ -12,11 +12,15 @@ export const LatestResults: React.FC<LatestResultsProps> = ({ onRefresh }) => {
         superLotto: WinningNumbers | null;
     }>({ unionLotto: null, superLotto: null });
 
-    const refreshResults = () => {
-        const results = getAllLatestWinningNumbers();
-        setLatestResults(results);
-        if (onRefresh) {
-            onRefresh();
+    const refreshResults = async () => {
+        try {
+            const results = await getAllLatestWinningNumbers();
+            setLatestResults(results);
+            if (onRefresh) {
+                onRefresh();
+            }
+        } catch (error) {
+            console.error('刷新开奖结果失败:', error);
         }
     };
 
