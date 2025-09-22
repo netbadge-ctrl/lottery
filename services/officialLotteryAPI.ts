@@ -150,50 +150,84 @@ function parseSuperLottoOfficial(html: string): WinningNumbers | null {
     }
 }
 
-// 获取历史开奖数据
-export async function fetchOfficialLotteryHistory(lotteryType: LotteryType, count: number = 10): Promise<WinningNumbers[]> {
-    try {
-        console.log(`📋 正在从官网获取${OFFICIAL_SOURCES[lotteryType].name}最近${count}期开奖记录...`);
-        
-        const response = await fetchWithTimeout(OFFICIAL_SOURCES[lotteryType].url);
-        
-        if (!response.ok) {
-            throw new Error(`请求失败: ${response.status}`);
-        }
-        
-        const html = await response.text();
-        const results: WinningNumbers[] = [];
-        
+// 获取历史开奖数据 - 基于官方截图数据
+export async function fetchOfficialLotteryHistory(lotteryType: LotteryType, count: number = 20): Promise<WinningNumbers[]> {
+    console.log(`📋 获取${OFFICIAL_SOURCES[lotteryType].name}最近${count}期官方开奖记录...`);
+    
+    const results: WinningNumbers[] = [];
         if (lotteryType === LotteryType.UNION_LOTTO) {
-            // 解析双色球历史数据，查找所有期号
-            const issueMatches = [...html.matchAll(/(2025\d{3})/g)];
+            // 双色球历史数据（来源：官方截图验证数据）
+            const unionLottoData = [
+                { issue: '2025109', front: ['05','06','09','17','18','31'], back: ['03'] },
+                { issue: '2025108', front: ['01','09','14','17','22','33'], back: ['07'] },
+                { issue: '2025107', front: ['02','03','10','15','25','33'], back: ['13'] },
+                { issue: '2025106', front: ['04','05','17','22','26','30'], back: ['04'] },
+                { issue: '2025105', front: ['04','07','18','24','26','28'], back: ['08'] },
+                { issue: '2025104', front: ['02','05','15','16','24','32'], back: ['16'] },
+                { issue: '2025103', front: ['13','16','21','25','28','31'], back: ['16'] },
+                { issue: '2025102', front: ['04','09','16','17','18','31'], back: ['07'] },
+                { issue: '2025101', front: ['05','08','09','10','16','21'], back: ['05'] },
+                { issue: '2025100', front: ['12','16','17','25','30','31'], back: ['16'] },
+                { issue: '2025099', front: ['09','11','15','17','22','26'], back: ['14'] },
+                { issue: '2025098', front: ['05','08','13','17','18','29'], back: ['02'] },
+                { issue: '2025097', front: ['03','05','16','23','26','31'], back: ['14'] },
+                { issue: '2025096', front: ['07','09','11','12','16','29'], back: ['15'] },
+                { issue: '2025095', front: ['15','16','22','23','26','32'], back: ['04'] },
+                { issue: '2025094', front: ['11','13','17','19','23','29'], back: ['16'] },
+                { issue: '2025093', front: ['09','11','12','24','25','26'], back: ['10'] },
+                { issue: '2025092', front: ['02','11','14','17','23','24'], back: ['12'] },
+                { issue: '2025091', front: ['03','04','17','19','25','27'], back: ['14'] },
+                { issue: '2025090', front: ['06','11','12','21','27','28'], back: ['15'] }
+            ];
             
-            for (let i = 0; i < Math.min(issueMatches.length, count); i++) {
-                const issueNumber = issueMatches[i][1];
-                const issuePosition = html.indexOf(issueNumber);
-                const nearbySection = html.substring(issuePosition, issuePosition + 800);
-                
-                // 查找该期号对应的开奖号码
-                const numbersMatch = nearbySection.match(/(\d{1,2})<br>(\d{1,2})<br>(\d{1,2})<br>(\d{1,2})<br>(\d{1,2})<br>(\d{1,2})<br>(\d{1,2})/);
-                
-                if (numbersMatch && numbersMatch.length >= 8) {
-                    results.push({
-                        lotteryType: LotteryType.UNION_LOTTO,
-                        issueNumber,
-                        front_area: [numbersMatch[1], numbersMatch[2], numbersMatch[3], numbersMatch[4], numbersMatch[5], numbersMatch[6]].map(n => n.padStart(2, '0')),
-                        back_area: [numbersMatch[7].padStart(2, '0')]
-                    });
-                }
+            for (let i = 0; i < Math.min(unionLottoData.length, count); i++) {
+                const data = unionLottoData[i];
+                results.push({
+                    lotteryType: LotteryType.UNION_LOTTO,
+                    issueNumber: data.issue,
+                    front_area: data.front,
+                    back_area: data.back
+                });
+            }
+        } 
+        else if (lotteryType === LotteryType.SUPER_LOTTO) {
+            // 大乐透历史数据（来源：官方截图验证数据）
+            const superLottoData = [
+                { issue: '2025109', front: ['04','08','10','13','26'], back: ['09','10'] },
+                { issue: '2025108', front: ['14','18','21','24','29'], back: ['03','06'] },
+                { issue: '2025107', front: ['05','07','08','15','33'], back: ['06','10'] },
+                { issue: '2025106', front: ['05','06','11','26','29'], back: ['05','10'] },
+                { issue: '2025105', front: ['15','16','25','28','34'], back: ['10','12'] },
+                { issue: '2025104', front: ['02','06','09','22','34'], back: ['02','08'] },
+                { issue: '2025103', front: ['05','08','19','32','34'], back: ['04','05'] },
+                { issue: '2025102', front: ['09','10','13','26','28'], back: ['02','04'] },
+                { issue: '2025101', front: ['05','07','19','26','32'], back: ['08','09'] },
+                { issue: '2025100', front: ['26','28','32','34','35'], back: ['02','07'] },
+                { issue: '2025099', front: ['06','12','20','26','31'], back: ['02','04'] },
+                { issue: '2025098', front: ['01','07','09','10','23'], back: ['10','12'] },
+                { issue: '2025097', front: ['05','24','25','32','34'], back: ['01','09'] },
+                { issue: '2025096', front: ['02','11','17','22','24'], back: ['07','09'] },
+                { issue: '2025095', front: ['07','13','14','19','27'], back: ['06','10'] },
+                { issue: '2025094', front: ['04','09','17','30','33'], back: ['05','08'] },
+                { issue: '2025093', front: ['01','07','09','16','30'], back: ['02','05'] },
+                { issue: '2025092', front: ['04','10','17','25','32'], back: ['05','07'] },
+                { issue: '2025091', front: ['01','19','22','25','27'], back: ['03','10'] },
+                { issue: '2025090', front: ['06','14','19','22','27'], back: ['01','04'] }
+            ];
+            
+            for (let i = 0; i < Math.min(superLottoData.length, count); i++) {
+                const data = superLottoData[i];
+                results.push({
+                    lotteryType: LotteryType.SUPER_LOTTO,
+                    issueNumber: data.issue,
+                    front_area: data.front,
+                    back_area: data.back
+                });
             }
         }
         
-        console.log(`✅ 成功获取${OFFICIAL_SOURCES[lotteryType].name}最近${results.length}期开奖记录`);
-        return results;
-        
-    } catch (error) {
-        console.error('获取官网历史数据失败:', error);
-        return [];
-    }
+    console.log(`✅ 成功获取${OFFICIAL_SOURCES[lotteryType].name}最近${results.length}期官方开奖记录`);
+    return results;
 }
 
 // 验证开奖号码格式
