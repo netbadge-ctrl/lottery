@@ -1,11 +1,8 @@
 import { LotteryType, type WinningNumbers, type PrizeInfo, type ScannedTicketData } from '../types';
-import { getWinningNumbersFromDatabase, initializeDataService } from './dataFetchService';
+import { getWinningNumbersFromDatabase } from './dataFetchService';
 
 // 缓存开奖号码数据（保留缓存机制提高性能）
 const winningNumbersCache = new Map<string, WinningNumbers>();
-
-// 初始化数据服务（在服务启动时调用）
-initializeDataService();
 
 // 手动更新开奖号码的函数（现在只是添加到缓存，因为数据源已统一）
 export const updateWinningNumbers = (lotteryType: LotteryType, issueNumber: string, frontArea: string[], backArea: string[]): void => {

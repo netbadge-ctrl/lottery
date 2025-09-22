@@ -2,6 +2,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { initializeDataService } from './services/dataFetchService';
+
+// 初始化数据服务（只在应用启动时执行一次）
+initializeDataService();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

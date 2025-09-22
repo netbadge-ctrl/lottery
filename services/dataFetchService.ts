@@ -183,8 +183,18 @@ export function clearDatabase(): void {
     }
 }
 
+// 全局定时器引用，防止重复创建
+let dailyFetchTimer: NodeJS.Timeout | null = null;
+
 // 设置定时任务（每天上午10点抓取数据）
 export function setupDailyFetch(): void {
+    // 如果已经有定时器在运行，先清除它
+    if (dailyFetchTimer) {
+        clearTimeout(dailyFetchTimer);
+        dailyFetchTimer = null;
+        console.log('🔄 清除已存在的定时任务');
+    }
+    
     console.log('⏰ 设置每日定时抓取任务...');
     
     // 计算下次上午10点的时间
@@ -213,7 +223,7 @@ export function setupDailyFetch(): void {
         
         console.log(`⏰ 下次数据抓取时间: ${getNext10AM().toLocaleString()}`);
         
-        setTimeout(async () => {
+        dailyFetchTimer = setTimeout(async () => {
             console.log('🕙 定时任务触发 - 开始抓取最新开奖数据');
             await fetchLatestData();
             
@@ -226,8 +236,26 @@ export function setupDailyFetch(): void {
     scheduleDailyFetch();
 }
 
+// 清除定时任务
+export function clearDailyFetch(): void {
+    if (dailyFetchTimer) {
+        clearTimeout(dailyFetchTimer);
+        dailyFetchTimer = null;
+        console.log('🚫 已清除定时抓取任务');
+    }
+}
+
+// 防止重复初始化的标志
+let isServiceInitialized = false;
+
 // 初始化数据服务
 export function initializeDataService(): void {
+    // 防止重复初始化
+    if (isServiceInitialized) {
+        console.log('ℹ️ 开奖数据服务已经初始化，跳过重复初始化');
+        return;
+    }
+    
     console.log('🚀 初始化开奖数据服务...');
     
     // 加载本地数据
@@ -236,7 +264,15 @@ export function initializeDataService(): void {
     // 设置定时任务
     setupDailyFetch();
     
+    isServiceInitialized = true;
     console.log('✅ 开奖数据服务已启动');
+}
+
+// 重置服务状态（用于测试或重新初始化）
+export function resetDataService(): void {
+    clearDailyFetch();
+    isServiceInitialized = false;
+    console.log('🔄 数据服务状态已重置');
 }
 
 // 获取最新开奖数据
