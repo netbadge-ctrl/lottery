@@ -1,16 +1,26 @@
 import { LotteryType, type WinningNumbers } from '../types';
 
-// API基础URL - 根据当前页面URL自动配置
+// API基础URL - 在Replit环境中使用代理端口访问API
 const API_BASE_URL = (() => {
   if (typeof window !== 'undefined') {
     if (window.location.hostname.includes('replit.dev')) {
-      // 在Replit环境中，使用相同域名但端口3001
-      return `${window.location.protocol}//${window.location.hostname}:3001`;
+      // 在Replit环境中，通过/api代理访问后端，或直接使用相对路径到不同端口
+      const hostname = window.location.hostname;
+      const portMatch = hostname.match(/^(.+?)-00-/);
+      if (portMatch) {
+        // 构造3001端口的URL
+        const baseHost = hostname.replace('-00-', '-01-'); // 改变端口标识
+        return `${window.location.protocol}//${baseHost}`;
+      }
+      // 备用：直接尝试端口3001
+      return `${window.location.protocol}//${hostname.replace('5000', '3001')}`;
     }
   }
   // 本地开发环境
   return 'http://localhost:3001';
 })();
+
+console.log('🔗 API_BASE_URL:', API_BASE_URL);
 
 export class LotteryAPIClient {
   
