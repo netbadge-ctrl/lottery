@@ -88,7 +88,7 @@ export class LotteryDatabaseService {
       .select()
       .from(lotteryResults)
       .where(eq(lotteryResults.lotteryType, lotteryType))
-      .orderBy(desc(lotteryResults.id))
+      .orderBy(desc(lotteryResults.issueNumber))
       .limit(1);
 
     if (!result) {

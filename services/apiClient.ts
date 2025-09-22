@@ -1,8 +1,10 @@
 import { LotteryType, type WinningNumbers } from '../types';
 
-// API基础URL - 在开发环境中使用localhost，在生产环境中使用环境变量
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? `https://${process.env.REPLIT_DOMAIN || window.location.hostname}:3001`
+// API基础URL - 在Replit环境中使用正确的域名和端口
+const API_BASE_URL = process.env.REPLIT_DOMAINS
+  ? `https://${process.env.REPLIT_DOMAINS.replace(':5000', ':3001')}`
+  : window.location.hostname.includes('replit.dev')
+  ? `https://${window.location.hostname}:3001`
   : 'http://localhost:3001';
 
 export class LotteryAPIClient {
