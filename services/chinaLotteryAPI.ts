@@ -68,12 +68,14 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}): Promise
     }
 }
 
-// 从中国彩票官方网站获取开奖数据
+// 从中国彩票官方网站获取最新开奖数据（使用专用列表页面）
 export async function fetchChinaLotteryData(lotteryType: LotteryType, issueNumber?: string): Promise<WinningNumbers | null> {
     try {
-        console.log(`🇨🇳 正在从中国彩票官方网站获取${lotteryType}开奖数据...`);
+        console.log(`🇨🇳 正在从中国彩票官方网站获取${lotteryType}最新开奖数据...`);
         
-        const url = `${CHINA_LOTTERY_CONFIG.baseUrl}${CHINA_LOTTERY_CONFIG.endpoints.nation}`;
+        // 使用专用的列表页面，而不是nation页面
+        const config = CHINA_LOTTERY_CONFIG.historyPatterns[lotteryType];
+        const url = `${CHINA_LOTTERY_CONFIG.baseUrl}${CHINA_LOTTERY_CONFIG.endpoints[config.endpoint]}`;
         
         const response = await fetchWithTimeout(url, {
             method: 'GET'
@@ -84,89 +86,183 @@ export async function fetchChinaLotteryData(lotteryType: LotteryType, issueNumbe
         }
         
         const html = await response.text();
-        console.log('🌐 成功获取官网页面内容');
+        console.log('🌐 成功获取专用页面内容');
         
-        // 尝试解析 __NUXT__ 数据
-        const nuxtMatch = html.match(/window\.__NUXT__\s*=\s*(.+);/);
-        if (nuxtMatch) {
-            try {
-                console.log('📊 发现 __NUXT__ 数据，尝试解析...');
-                // 这里需要处理复杂的NUXT数据格式
-                // 从调试信息可以看到数据是以函数形式返回的
-                const nuxtDataStr = nuxtMatch[1];
-                
-                // 查找开奖数据
-                const lotteryData = parseNuxtLotteryData(html, lotteryType);
-                if (lotteryData) {
-                    console.log(`✅ 从__NUXT__数据成功解析${lotteryType}开奖信息`);
-                    return lotteryData;
+        // 尝试使用NUXT数据格式解析（最可靠）
+        const nuxtPattern = config.patterns[0]; // 第一个是NUXT格式
+        const nuxtMatches = [...html.matchAll(nuxtPattern)];
+        
+        if (nuxtMatches.length > 0) {
+            const latestMatch = nuxtMatches[0]; // 获取最新的一条记录
+            console.log('📊 使用NUXT数据格式解析成功');
+            
+            const winningNumbers = parseLatestLotteryData(latestMatch, lotteryType);
+            if (winningNumbers) {
+                // 验证数据格式
+                if (validateWinningNumbers(winningNumbers)) {
+                    console.log(`✅ 成功从官网获取${lotteryType}第${winningNumbers.issueNumber}期开奖号码:`);
+                    console.log(`   前区号码: ${winningNumbers.front_area.join(', ')}`);
+                    console.log(`   后区号码: ${winningNumbers.back_area.join(', ')}`);
+                    console.log(`   📊 数据来源: 中国彩票官方网站 (NUXT格式)`);
+                    return winningNumbers;
+                } else {
+                    console.log('⚠️ 解析出的数据格式不正确，尝试其他方式');
                 }
-            } catch (error) {
-                console.log('⚠️ __NUXT__ 数据解析失败，尝试正则表达式解析');
             }
         }
         
-        // 使用正则表达式解析开奖数据
-        const pattern = CHINA_LOTTERY_CONFIG.lotteryPatterns[lotteryType];
-        if (!pattern) {
-            throw new Error(`不支持的彩票类型: ${lotteryType}`);
-        }
-        
-        const match = html.match(pattern);
-        if (!match) {
-            console.log(`⚠️ 未在官网找到${lotteryType}的开奖数据`);
-            return null;
-        }
-        
-        // 解析匹配的数据
-        const [, period, ...numbers] = match;
-        
-        let winningNumbers: WinningNumbers;
-        
-        if (lotteryType === LotteryType.UNION_LOTTO) {
-            // 双色球：前6个红球 + 1个蓝球
-            if (numbers.length >= 7) {
-                winningNumbers = {
-                    lotteryType,
-                    issueNumber: `20${period}`, // 转换为完整期号格式
-                    front_area: numbers.slice(0, 6),
-                    back_area: [numbers[6]]
-                };
-            } else {
-                throw new Error('双色球开奖号码解析错误');
+        // 如果NUXT解析失败，尝试其他模式
+        console.log('⚠️ NUXT格式解析失败，尝试HTML文本解析...');
+        for (let i = 1; i < config.patterns.length; i++) {
+            const pattern = config.patterns[i];
+            const matches = [...html.matchAll(pattern)];
+            if (matches.length > 0) {
+                const latestMatch = matches[0];
+                console.log(`✅ 使用HTML模式${i}解析成功`);
+                
+                const winningNumbers = parseLatestLotteryData(latestMatch, lotteryType);
+                if (winningNumbers && validateWinningNumbers(winningNumbers)) {
+                    console.log(`✅ 成功从官网获取${lotteryType}第${winningNumbers.issueNumber}期开奖号码:`);
+                    console.log(`   前区号码: ${winningNumbers.front_area.join(', ')}`);
+                    console.log(`   后区号码: ${winningNumbers.back_area.join(', ')}`);
+                    console.log(`   📊 数据来源: 中国彩票官方网站 (HTML格式)`);
+                    return winningNumbers;
+                }
             }
-        } else if (lotteryType === LotteryType.SUPER_LOTTO) {
-            // 大乐透：前5个号码 + 2个后区号码
-            if (numbers.length >= 7) {
-                winningNumbers = {
-                    lotteryType,
-                    issueNumber: `20${period}`, // 转换为完整期号格式
-                    front_area: numbers.slice(0, 5),
-                    back_area: numbers.slice(5, 7)
-                };
-            } else {
-                throw new Error('大乐透开奖号码解析错误');
-            }
-        } else {
-            throw new Error(`不支持的彩票类型: ${lotteryType}`);
         }
         
-        // 如果指定了期号，检查是否匹配
-        if (issueNumber && winningNumbers.issueNumber !== issueNumber) {
-            console.log(`📅 官网最新期号 ${winningNumbers.issueNumber} 与查询期号 ${issueNumber} 不匹配`);
-            return null;
-        }
-        
-        console.log(`✅ 成功从官网获取${lotteryType}第${winningNumbers.issueNumber}期开奖号码:`);
-        console.log(`   前区号码: ${winningNumbers.front_area.join(', ')}`);
-        console.log(`   后区号码: ${winningNumbers.back_area.join(', ')}`);
-        console.log(`   📊 数据来源: 中国彩票官方网站`);
-        
-        return winningNumbers;
+        console.log(`⚠️ 未能从官网解析到有效的${lotteryType}开奖数据`);
+        return null;
         
     } catch (error) {
         console.error('中国彩票官网查询失败:', error);
         return null;
+    }
+}
+
+// 解析最新彩票开奖数据
+function parseLatestLotteryData(match: RegExpMatchArray, lotteryType: LotteryType): WinningNumbers | null {
+    try {
+        if (lotteryType === LotteryType.UNION_LOTTO) {
+            // NUXT格式: issueNo:"2025109" resultArea1:"05,06,09,17,18,31" resultArea2:"03"
+            if (match.length >= 4) {
+                const [, issueNo, frontArea, backArea] = match;
+                const frontNumbers = frontArea.split(',').map(n => n.padStart(2, '0'));
+                
+                return {
+                    lotteryType,
+                    issueNumber: issueNo, // 保持原始期号，不添加前缀
+                    front_area: frontNumbers,
+                    back_area: [backArea.padStart(2, '0')]
+                };
+            } else {
+                // HTML格式: 第2025109期 + 7个号码
+                const [, period, ...numbers] = match;
+                if (numbers.length >= 7) {
+                    return {
+                        lotteryType,
+                        issueNumber: period, // 保持原始期号
+                        front_area: numbers.slice(0, 6).map(n => n.padStart(2, '0')),
+                        back_area: [numbers[6].padStart(2, '0')]
+                    };
+                }
+            }
+        } else if (lotteryType === LotteryType.SUPER_LOTTO) {
+            // NUXT格式: issueNo:"25108" resultArea1:"14,18,21,24,29" resultArea2:"03,06"
+            if (match.length >= 5) {
+                const [, issueNo, frontArea, backArea1, backArea2] = match;
+                const frontNumbers = frontArea.split(',').map(n => n.padStart(2, '0'));
+                
+                return {
+                    lotteryType,
+                    issueNumber: issueNo, // 保持原始期号
+                    front_area: frontNumbers,
+                    back_area: [backArea1.padStart(2, '0'), backArea2.padStart(2, '0')]
+                };
+            } else {
+                // HTML格式: 第25108期 + 7个号码
+                const [, period, ...numbers] = match;
+                if (numbers.length >= 7) {
+                    return {
+                        lotteryType,
+                        issueNumber: period, // 保持原始期号
+                        front_area: numbers.slice(0, 5).map(n => n.padStart(2, '0')),
+                        back_area: numbers.slice(5, 7).map(n => n.padStart(2, '0'))
+                    };
+                }
+            }
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('解析开奖数据失败:', error);
+        return null;
+    }
+}
+
+// 验证开奖号码格式
+function validateWinningNumbers(winningNumbers: WinningNumbers): boolean {
+    try {
+        const { lotteryType, front_area, back_area } = winningNumbers;
+        
+        // 检查基本格式
+        if (!Array.isArray(front_area) || !Array.isArray(back_area)) {
+            return false;
+        }
+        
+        // 验证双色球格式
+        if (lotteryType === LotteryType.UNION_LOTTO) {
+            if (front_area.length !== 6 || back_area.length !== 1) {
+                console.log('❌ 双色球号码数量不正确');
+                return false;
+            }
+            
+            // 验证前区号码范围 (01-33)
+            for (const num of front_area) {
+                const n = parseInt(num);
+                if (isNaN(n) || n < 1 || n > 33) {
+                    console.log(`❌ 双色球前区号码 ${num} 超出范围 (01-33)`);
+                    return false;
+                }
+            }
+            
+            // 验证后区号码范围 (01-16)
+            const backNum = parseInt(back_area[0]);
+            if (isNaN(backNum) || backNum < 1 || backNum > 16) {
+                console.log(`❌ 双色球后区号码 ${back_area[0]} 超出范围 (01-16)`);
+                return false;
+            }
+        }
+        // 验证大乐透格式
+        else if (lotteryType === LotteryType.SUPER_LOTTO) {
+            if (front_area.length !== 5 || back_area.length !== 2) {
+                console.log('❌ 大乐透号码数量不正确');
+                return false;
+            }
+            
+            // 验证前区号码范围 (01-35)
+            for (const num of front_area) {
+                const n = parseInt(num);
+                if (isNaN(n) || n < 1 || n > 35) {
+                    console.log(`❌ 大乐透前区号码 ${num} 超出范围 (01-35)`);
+                    return false;
+                }
+            }
+            
+            // 验证后区号码范围 (01-12)
+            for (const num of back_area) {
+                const n = parseInt(num);
+                if (isNaN(n) || n < 1 || n > 12) {
+                    console.log(`❌ 大乐透后区号码 ${num} 超出范围 (01-12)`);
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('验证开奖号码失败:', error);
+        return false;
     }
 }
 
