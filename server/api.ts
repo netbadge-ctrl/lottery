@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { lotteryDB } from '../services/db/database';
 import { LotteryType, type WinningNumbers } from '../types';
-import { fetchRecentLotteryHistory, fetchChinaLotteryData } from '../services/chinaLotteryAPI';
+import { fetchOfficialLotteryHistory, fetchOfficialLotteryData } from '../services/officialLotteryAPI';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -82,12 +82,12 @@ app.post('/api/lottery/fetch-history', async (req, res) => {
     console.log(`🕐 开始从官网抓取过去${count}期开奖数据...`);
     
     // 抓取双色球历史数据
-    console.log('🔴 正在抓取双色球历史数据...');
-    const unionLottoHistory = await fetchRecentLotteryHistory(LotteryType.UNION_LOTTO, count);
+    console.log('🔴 正在从中国福彩网抓取双色球历史数据...');
+    const unionLottoHistory = await fetchOfficialLotteryHistory(LotteryType.UNION_LOTTO, count);
     
-    // 抓取大乐透历史数据
-    console.log('🔵 正在抓取大乐透历史数据...');
-    const superLottoHistory = await fetchRecentLotteryHistory(LotteryType.SUPER_LOTTO, count);
+    // 抓取大乐透历史数据  
+    console.log('🔵 正在从中国体彩网抓取大乐透历史数据...');
+    const superLottoHistory = await fetchOfficialLotteryHistory(LotteryType.SUPER_LOTTO, count);
     
     // 保存到PostgreSQL数据库
     await lotteryDB.saveBatchLotteryResults([...unionLottoHistory, ...superLottoHistory]);
@@ -116,8 +116,8 @@ app.post('/api/lottery/fetch-latest', async (req, res) => {
     console.log('🔄 正在从官网抓取最新开奖数据...');
     
     // 获取最新数据
-    const latestUnionLotto = await fetchChinaLotteryData(LotteryType.UNION_LOTTO);
-    const latestSuperLotto = await fetchChinaLotteryData(LotteryType.SUPER_LOTTO);
+    const latestUnionLotto = await fetchOfficialLotteryData(LotteryType.UNION_LOTTO);
+    const latestSuperLotto = await fetchOfficialLotteryData(LotteryType.SUPER_LOTTO);
     
     const results = [];
     

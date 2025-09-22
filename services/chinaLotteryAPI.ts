@@ -1,12 +1,18 @@
 import { LotteryType, type WinningNumbers } from '../types';
 
-// 中国彩票官方网站API配置
-const CHINA_LOTTERY_CONFIG = {
-    baseUrl: 'https://m.china-lottery.cn',
-    endpoints: {
-        nation: '/home/nation?frm=z_baidu',
-        unionLottoHistory: '/list/1001?frm=z_baidu',    // 双色球往期开奖
-        superLottoHistory: '/list/1000?frm=z_baidu'     // 大乐透往期开奖
+// 官方彩票网站数据源配置
+const OFFICIAL_LOTTERY_CONFIG = {
+    // 大乐透 - 中国体彩网官方
+    superLotto: {
+        baseUrl: 'https://www.lottery.gov.cn',
+        endpoint: '/kj/kjlb.html?dlt',
+        name: '超级大乐透'
+    },
+    // 双色球 - 中国福彩网官方  
+    unionLotto: {
+        baseUrl: 'https://www.cwl.gov.cn',
+        endpoint: '/ygkj/wqkjgg/ssq/',
+        name: '双色球'
     },
     // 彩票类型映射
     lotteryPatterns: {
