@@ -13,9 +13,7 @@ if (!connectionString) {
 
 export const pool = new Pool({ 
   connectionString,
-  ssl: {
-    rejectUnauthorized: false // 允许自签名证书，用于云数据库
-  }
+  ssl: false // 禁用SSL连接，因为数据库服务器不支持SSL
 });
 
 export const db = drizzle(pool, { schema });
