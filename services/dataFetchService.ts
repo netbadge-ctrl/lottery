@@ -239,5 +239,19 @@ export function initializeDataService(): void {
     console.log('✅ 开奖数据服务已启动');
 }
 
+// 获取最新开奖数据
+export function getLatestWinningNumbers(lotteryType: LotteryType): WinningNumbers | null {
+    const data = lotteryDatabase.data[lotteryType];
+    return data.length > 0 ? data[0] : null;
+}
+
+// 获取所有彩票的最新开奖数据
+export function getAllLatestWinningNumbers(): { unionLotto: WinningNumbers | null, superLotto: WinningNumbers | null } {
+    return {
+        unionLotto: getLatestWinningNumbers(LotteryType.UNION_LOTTO),
+        superLotto: getLatestWinningNumbers(LotteryType.SUPER_LOTTO)
+    };
+}
+
 // 导出数据库访问函数
 export { lotteryDatabase };

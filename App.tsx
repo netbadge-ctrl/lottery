@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { ImageUploader } from './components/ImageUploader';
 import { ResultDisplay } from './components/ResultDisplay';
 import { Spinner } from './components/Spinner';
+import { LatestResults } from './components/LatestResults';
 import { scanLotteryTicket } from './services/aiService';
 import { getWinningNumbers, checkPrizes, updateWinningNumbers } from './services/lotteryService';
 import { fetchHistoryData, fetchLatestData, getDatabaseStats, clearDatabase } from './services/dataFetchService';
@@ -168,6 +169,7 @@ function App() {
                                 onScan={handleScan}
                                 hasImage={!!imageFile}
                             />
+                            <LatestResults />
                         </div>
                     )}
                     
