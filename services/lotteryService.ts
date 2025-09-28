@@ -1,117 +1,44 @@
 import { LotteryType, type WinningNumbers, type PrizeInfo, type ScannedTicketData } from '../types';
-import { getWinningNumbersFromDatabase } from './dataFetchService';
 
-// 缓存开奖号码数据（保留缓存机制提高性能）
-const winningNumbersCache = new Map<string, WinningNumbers>();
+// Mock database of winning numbers
+const winningNumbersDB: WinningNumbers[] = [
+    {
+        lotteryType: LotteryType.UNION_LOTTO,
+        issueNumber: "2024088",
+        front_area: ["03", "09", "10", "20", "29", "30"],
+        back_area: ["11"],
+    },
+    {
+        lotteryType: LotteryType.UNION_LOTTO,
+        issueNumber: "2024087",
+        front_area: ["01", "07", "15", "18", "22", "25"],
+        back_area: ["05"],
+    },
+    {
+        lotteryType: LotteryType.SUPER_LOTTO,
+        issueNumber: "24088",
+        front_area: ["04", "11", "18", "21", "33"],
+        back_area: ["06", "09"],
+    },
+    {
+        lotteryType: LotteryType.SUPER_LOTTO,
+        issueNumber: "24087",
+        front_area: ["02", "09", "16", "23", "30"],
+        back_area: ["01", "07"],
+    }
+];
 
-// 手动更新开奖号码的函数（现在只是添加到缓存，因为数据源已统一）
-export const updateWinningNumbers = (lotteryType: LotteryType, issueNumber: string, frontArea: string[], backArea: string[]): void => {
-    const cacheKey = `${lotteryType}-${issueNumber}`;
-    const winningNumbers: WinningNumbers = {
-        lotteryType,
-        issueNumber,
-        front_area: frontArea,
-        back_area: backArea
-    };
-    
-    // 更新缓存
-    winningNumbersCache.set(cacheKey, winningNumbers);
-    
-    console.log(`✅ 已手动设置${lotteryType}第${issueNumber}期开奖号码（缓存）`);
-    console.log(`📊 开奖号码: 前区 ${frontArea.join(',')} | 后区 ${backArea.join(',')}`);
-    console.log(`💡 注意：此数据仅在当前会话有效，建议通过官网数据抓取获取永久数据`);
+export const getWinningNumbers = (lotteryType: LotteryType, issueNumber: string): WinningNumbers | null => {
+    // Super Lotto issue numbers are often shorter on tickets (e.g., 24088 vs 2024088)
+    const normalizedIssue = issueNumber.startsWith('2024') && issueNumber.length > 5 ? issueNumber.substring(2) : issueNumber;
+    const fullIssue = issueNumber.length < 7 ? `20${issueNumber}` : issueNumber;
+
+    const result = winningNumbersDB.find(record => 
+        record.lotteryType === lotteryType && 
+        (record.issueNumber === issueNumber || record.issueNumber === normalizedIssue || record.issueNumber === fullIssue)
+    );
+    return result || null;
 };
-
-export const getWinningNumbers = async (lotteryType: LotteryType, issueNumber: string): Promise<WinningNumbers | null> => {
-    // 生成缓存键
-    const cacheKey = `${lotteryType}-${issueNumber}`;
-    
-    // 第一层：检查内存缓存
-    if (winningNumbersCache.has(cacheKey)) {
-        console.log(`📋 从缓存获取${lotteryType}第${issueNumber}期开奖号码`);
-        return winningNumbersCache.get(cacheKey)!;
-    }
-    
-    // 第二层：从PostgreSQL数据库查询（唯一数据源）
-    const result = await getWinningNumbersFromDatabase(lotteryType, issueNumber);
-    
-    if (result) {
-        console.log(`🏛️ 从PostgreSQL数据库获取${lotteryType}第${issueNumber}期开奖号码`);
-        // 缓存到内存
-        winningNumbersCache.set(cacheKey, result);
-        return result;
-    }
-    
-    // 未找到数据
-    console.log(`⚠️ 未找到${lotteryType}第${issueNumber}期的开奖号码`);
-    console.log(`💡 该期号可能：`);
-    console.log(`   1. 尚未开奖`);
-    console.log(`   2. 不在当前数据库范围内（仅包含最近100期）`);
-    console.log(`   3. 期号输入错误`);
-    
-    return null;
-};
-
-// 验证开奖号码格式的函数
-function validateWinningNumbers(winningNumbers: WinningNumbers): boolean {
-    try {
-        const { lotteryType, front_area, back_area } = winningNumbers;
-        
-        // 检查基本格式
-        if (!Array.isArray(front_area) || !Array.isArray(back_area)) {
-            return false;
-        }
-        
-        // 验证双色球格式
-        if (lotteryType === LotteryType.UNION_LOTTO) {
-            if (front_area.length !== 6 || back_area.length !== 1) {
-                return false;
-            }
-            
-            // 验证前区号码范围 (01-33)
-            const frontValid = front_area.every(num => {
-                const n = parseInt(num);
-                return n >= 1 && n <= 33;
-            });
-            
-            // 验证后区号码范围 (01-16)
-            const backValid = back_area.every(num => {
-                const n = parseInt(num);
-                return n >= 1 && n <= 16;
-            });
-            
-            return frontValid && backValid;
-        }
-        
-        // 验证超级大乐透格式
-        if (lotteryType === LotteryType.SUPER_LOTTO) {
-            if (front_area.length !== 5 || back_area.length !== 2) {
-                return false;
-            }
-            
-            // 验证前区号码范围 (01-35)
-            const frontValid = front_area.every(num => {
-                const n = parseInt(num);
-                return n >= 1 && n <= 35;
-            });
-            
-            // 验证后区号码范围 (01-12)
-            const backValid = back_area.every(num => {
-                const n = parseInt(num);
-                return n >= 1 && n <= 12;
-            });
-            
-            return frontValid && backValid;
-        }
-        
-        return false;
-    } catch (error) {
-        console.error('验证开奖号码时出错:', error);
-        return false;
-    }
-}
-
-// ... existing code for prize checking functions ...
 
 const checkUnionLottoPrize = (userFront: string[], userBack: string[], winFront: string[], winBack: string[]): PrizeInfo => {
     const frontMatches = userFront.filter(num => winFront.includes(num));
@@ -153,6 +80,7 @@ const checkSuperLottoPrize = (userFront: string[], userBack: string[], winFront:
 
     return { ...prize, isWinner: false, prizeTier: "未中奖", prizeAmount: "¥0" };
 };
+
 
 export const checkPrizes = (scannedData: ScannedTicketData, winningNumbers: WinningNumbers): PrizeInfo[] => {
     return scannedData.numbers.map(ticket => {

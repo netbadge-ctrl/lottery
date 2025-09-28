@@ -2,101 +2,19 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# AI彩票识别工具
+# Run and deploy your AI Studio app
 
-一个AI驱动的工具，用于扫描和核对中国的"双色球"和"超级大乐透"彩票。上传您的彩票图片，即可识别彩票类型、期号和号码，并与中奖结果进行比对，看看您是否中奖。
+This contains everything you need to run your app locally.
 
-## 🎯 核心功能
+View your app in AI Studio: https://ai.studio/apps/drive/1Wxc1Dt6FRy63N5uMeUyIcISE1LLIh1nX
 
-- **📷 AI图像识别**: 使用智谱AI GLM-4V-Plus模型识别彩票信息
-- **🎲 支持彩票类型**: 双色球、超级大乐透（支持复式投注）
-- **🏆 自动中奖检测**: 自动比对开奖号码，计算中奖等级和奖金
-- **💾 可靠数据源**: 三层数据获取策略确保开奖号码准确性
-- **🔧 手动修正**: 支持用户手动输入和验证开奖号码
+## Run Locally
 
-## 📊 开奖数据获取策略
+**Prerequisites:**  Node.js
 
-系统采用三层验证策略获取开奖号码：
 
-1. **本地验证数据库** 🔒
-   - 优先使用经过人工验证的本地开奖数据
-   - 确保数据准确性和快速响应
-
-2. **官方API数据源** 🌐
-   - 尝试从体彩官方API获取最新开奖数据
-   - 获取的数据需要用户验证后保存
-
-3. **手动输入验证** ✍️
-   - 当自动获取失败时，用户可手动输入正确数据
-   - 输入的数据会保存到本地数据库供后续使用
-
-## 🚀 运行应用
-
-**环境要求:** Node.js
-
-1. 安装依赖:
-   ```bash
-   npm install
-   ```
-
-2. 配置环境变量:
-   在 `.env.local` 文件中设置您的智谱AI API密钥:
-   ```
-   VITE_ZHIPU_API_KEY=your_api_key_here
-   ```
-
-3. 启动开发服务器:
-   ```bash
-   npm run dev
-   ```
-
-4. 打开浏览器访问显示的本地地址
-
-## 🧪 测试开奖数据系统
-
-可以运行测试脚本来验证开奖号码获取功能：
-
-```bash
-npx tsx test-lottery-service.ts
-```
-
-## 📱 使用方法
-
-1. **上传彩票照片**: 点击上传区域选择清晰的彩票照片
-2. **AI识别**: 系统自动识别彩票类型、期号和投注号码
-3. **获取开奖结果**: 系统查询对应期号的开奖号码
-4. **查看中奖情况**: 显示中奖等级、奖金和号码匹配情况
-5. **手动修正** (如需要): 如果开奖数据不正确，可点击"修正开奖号码"手动输入
-
-## ⚡ 技术特点
-
-- **现代化技术栈**: React 19 + TypeScript + Vite
-- **AI视觉识别**: 智谱AI GLM-4V-Plus多模态模型
-- **响应式设计**: 适配桌面和移动设备
-- **错误容错**: 完善的错误处理和用户反馈
-- **数据持久化**: 本地数据库缓存提升性能
-
-## 🎲 支持的彩票
-
-### 双色球
-- 前区：6个红球（01-33）
-- 后区：1个蓝球（01-16）
-- 支持6个奖级
-
-### 超级大乐透
-- 前区：5个号码（01-35）
-- 后区：2个号码（01-12）
-- 支持9个奖级
-
-## 🔧 故障排除
-
-如果遇到开奖号码获取问题：
-
-1. **检查网络连接**: 确保能访问外部API
-2. **验证期号**: 确认期号格式正确且已开奖
-3. **手动输入**: 使用"修正开奖号码"功能手动输入正确数据
-4. **联系支持**: 如果问题持续存在
-
-## 🎯 在线体验
-
-访问 AI Studio 查看在线版本: https://ai.studio/apps/drive/1Wxc1Dt6FRy63N5uMeUyIcISE1LLIh1nX
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

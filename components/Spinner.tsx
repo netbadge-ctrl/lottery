@@ -26,8 +26,8 @@ export const Spinner: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center p-8 space-y-4">
-      <div className="w-16 h-16 border-4 border-slate-200 dark:border-slate-600 border-t-indigo-500 rounded-full animate-spin"></div>
-      <p className="text-slate-600 dark:text-slate-300 font-semibold text-center transition-opacity duration-500">{message}</p>
+      <div className="w-16 h-16 border-4 border-slate-700 border-t-indigo-400 rounded-full animate-spin"></div>
+      <p className="text-slate-300 font-semibold text-center transition-opacity duration-500">{message}</p>
     </div>
   );
 };

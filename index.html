@@ -3,11 +3,53 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI彩票识别工具</title>
+    <title>AI彩票识别 · 幸运扫描</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       body {
         -webkit-tap-highlight-color: transparent;
+      }
+      @keyframes pulse-glow {
+        0%, 100% {
+          box-shadow: 0 0 8px rgba(167, 139, 250, 0.3), 0 0 20px rgba(124, 58, 237, 0.2);
+        }
+        50% {
+          box-shadow: 0 0 16px rgba(167, 139, 250, 0.5), 0 0 30px rgba(124, 58, 237, 0.3);
+        }
+      }
+      .animate-pulse-glow {
+        animation: pulse-glow 3s infinite ease-in-out;
+      }
+
+      .confetti-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9999;
+        overflow: hidden;
+      }
+      .confetti-piece {
+        position: absolute;
+        width: 8px;
+        height: 16px;
+        background: var(--bg);
+        top: -20px;
+        left: var(--x);
+        animation: confetti-fall 4s linear infinite;
+        animation-delay: var(--d);
+        transform: rotate(var(--r));
+        opacity: 0.8;
+      }
+      @keyframes confetti-fall {
+        from {
+          transform: translateY(0) rotate(var(--r));
+        }
+        to {
+          transform: translateY(110vh) rotate(calc(var(--r) + 540deg));
+        }
       }
     </style>
   <script type="importmap">
@@ -15,12 +57,13 @@
   "imports": {
     "react/": "https://aistudiocdn.com/react@^19.1.1/",
     "react": "https://aistudiocdn.com/react@^19.1.1",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.20.0"
   }
 }
 </script>
 </head>
-  <body class="bg-slate-100 dark:bg-slate-900">
+  <body class="bg-slate-900">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
